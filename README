@@ -1,1 +1,14 @@
 Simple multithread plot drawer
+
+The purpose of this repository is to show my coding style.
+
+Features:
+  - Data load using QFuture;
+  - Drawing functionality is realized in a separate thread;
+
+Functionality of drawing has several drawbacks:
+  - The timestamp doesn`t count;
+  - Lack of axes signature;
+  - Method of drawing is poor (first though up solution).
+
+Drawbacks are planed to resolve.
