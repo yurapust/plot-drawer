@@ -24,12 +24,11 @@ void RenderThread::render(int pixmapOffset, double scaleFactor, QSize resultSize
     if (plotFileData.points.empty())
         return;
 
-    mutex.lock();
+    QMutexLocker locker(&mutex);
     exchData.pixmapOffset = pixmapOffset;
     exchData.scaleFactor  = scaleFactor;
     exchData.resultSize   = resultSize;
     restart = true;
-    mutex.unlock();
 
     if (!isRunning()) {
         start(LowPriority);
@@ -72,9 +71,7 @@ void RenderThread::run()
 {
     forever {
         mutex.lock();
-        safeData.pixmapOffset = exchData.pixmapOffset;
-        safeData.scaleFactor  = exchData.scaleFactor;
-        safeData.resultSize   = exchData.resultSize;
+        safeData = exchData;
         restart = false;
         mutex.unlock();
 
@@ -87,14 +84,12 @@ void RenderThread::run()
         auto pointsQuan = endPoint-startPoint;
         emit plotRendered(plot, safeData.scaleFactor, pointsQuan);
 
-        mutex.lock();
+        QMutexLocker locker(&mutex);
         if (!restart)
             condition.wait(&mutex);
         if (abort) {
-            mutex.unlock();
             return;
         }
-        mutex.unlock();
     }
 }
 
@@ -244,14 +239,15 @@ QPainterPath RenderThread::drawPointsByMeanValue(const std::vector<QPoint> &plot
 {
     QPainterPath path;
 
-    size_t pointPer10pix = 10*plotPoints.size() / width;
-    size_t start, end;
+    ptrdiff_t pointPer10pix = static_cast<ptrdiff_t>(10*plotPoints.size() / width);
+    ptrdiff_t start, end;
+    auto vecSize = static_cast<ptrdiff_t>(plotPoints.size());
 
     path.moveTo(plotPoints[0]);
     for (size_t i = 0; i < width; i += 10) {
-        start = i*plotPoints.size() / width;
+        start = static_cast<ptrdiff_t>(i*plotPoints.size() / width);
         end   = start + pointPer10pix;
-        if (start >= plotPoints.size() || end >= plotPoints.size())
+        if (start >= vecSize || end >= vecSize)
             break;
 
         auto summ = std::accumulate(plotPoints.cbegin()+start, plotPoints.cbegin()+end, 0.0,
@@ -269,12 +265,12 @@ QPainterPath RenderThread::drawPointsByVertLines(const std::vector<QPoint> &plot
 {
     QPainterPath path;
 
-    size_t pointPerPix = plotPoints.size() / width;
-    size_t start, end;
+    ptrdiff_t pointPerPix = static_cast<ptrdiff_t>(plotPoints.size() / width);
+    ptrdiff_t start, end;
     double min, max;
 
     for (size_t i = 0; i < width; ++i) {
-        start = i*plotPoints.size() / width;
+        start = static_cast<ptrdiff_t>(i*plotPoints.size() / width);
         end   = start + pointPerPix;
 
         auto minmax = std::minmax_element(plotPoints.cbegin()+start, plotPoints.cbegin()+end,

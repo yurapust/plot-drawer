@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QtConcurrent>
+#include <QMessageBox>
 
 #include "dataloader.h"
 #include "renderthread.h"
@@ -34,9 +35,11 @@ private slots:
 private:
     Ui::MainWindow *ui;
     RenderThread thread;
+    QMessageBox *msgBox;
 
     QFutureWatcher<DataLoader::FileData> *fileDataLoading;
 
+    QString createMsgAboutFileLoad(DataLoader::FileData &fileData);
     std::vector<DataLoader::Point> calcTestPoints(size_t quan);
 };
 

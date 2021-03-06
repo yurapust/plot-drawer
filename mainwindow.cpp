@@ -11,9 +11,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    msgBox = new QMessageBox;
+    msgBox->hide();
 
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::open);
     connect(ui->actionExit, &QAction::triggered, this, &MainWindow::close);
+    connect(ui->actionFile_info, &QAction::triggered, msgBox, &QMessageBox::show);
 
     fileDataLoading = new QFutureWatcher<DataLoader::FileData>(this);
     connect(fileDataLoading, &QFutureWatcher<DataLoader::FileData>::finished, this, &MainWindow::finished);
@@ -39,7 +42,7 @@ void MainWindow::open()
     static QString lastOpenFile = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
 
     QString fileName = QFileDialog::getOpenFileName(this, tr("Select Files"),
-                                                    lastOpenFile, "*.ssd *.rsd;;All files(*)");
+                                                    lastOpenFile, "*.plot;;All files(*)");
 
     if (fileName.isNull())
         return;
@@ -54,8 +57,34 @@ void MainWindow::open()
 void MainWindow::finished()
 {
     auto fileData = fileDataLoading->result();
+
+    auto msg = createMsgAboutFileLoad(fileData);
+    msgBox->setText(msg);
+    ui->actionFile_info->setEnabled(true);
+
     thread.setPlotFileData(fileData);
     ui->centralWidget->renderNewFileData();
+}
+
+QString MainWindow::createMsgAboutFileLoad(DataLoader::FileData &fileData)
+{
+    QString msg("File info:\n");
+    msg += "Loaded ";
+    msg += std::to_string(fileData.points.size()).c_str();
+    msg += " points\n";
+    if (fileData.header.empty())
+        msg += "File has't contain any info\n";
+    else
+        msg += fileData.header.c_str();
+
+    if (fileData.error.empty())
+        msg += "File loaded without errors\n";
+    else {
+        msg += "\nErrors:\n";
+        msg += fileData.error.c_str();
+    }
+
+    return msg;
 }
 
 std::vector<DataLoader::Point> MainWindow::calcTestPoints(size_t quan)
